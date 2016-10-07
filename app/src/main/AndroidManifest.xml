@@ -15,6 +15,10 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <provider
+            android:authorities="com.example.android.vinter_2"
+            android:name=".data.DbProvider"
+            android:exported="false"/>
     </application>
 
 </manifest>

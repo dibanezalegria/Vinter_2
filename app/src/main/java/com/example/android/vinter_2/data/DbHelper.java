@@ -45,8 +45,6 @@ public class DbHelper extends SQLiteOpenHelper {
                 PatientEntry.COLUMN_ENTRY_NUMBER + " INTEGER, " +
                 PatientEntry.COLUMN_NOTES + " TEXT)";
 
-        db.execSQL(SQL_CREATE_PATIENT_TABLE);
-
         final String SQL_CREATE_TEST_TABLE = "CREATE TABLE " +
                 TestEntry.TABLE_NAME + " (" +
                 TestEntry.COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
@@ -65,7 +63,17 @@ public class DbHelper extends SQLiteOpenHelper {
                 "UNIQUE (" + TestEntry.COLUMN_TYPE + ", " +
                 TestEntry.COLUMN_PATIENT_ID_FK + ") ON CONFLICT REPLACE);";
 
+        db.execSQL(SQL_CREATE_PATIENT_TABLE);
         db.execSQL(SQL_CREATE_TEST_TABLE);
+    }
+
+    @Override
+    public void onConfigure(SQLiteDatabase db) {
+        super.onConfigure(db);
+        // Enable foreign key constrains
+        if (!db.isReadOnly()) {
+            db.execSQL("PRAGMA foreign_keys=ON;");
+        }
     }
 
     @Override

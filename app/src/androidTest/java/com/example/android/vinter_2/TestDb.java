@@ -14,9 +14,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
+import static com.example.android.vinter_2.TestUtils.validateCurrentRecord;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -28,20 +27,13 @@ import static org.junit.Assert.assertTrue;
  */
 @RunWith(AndroidJUnit4.class)
 public class TestDb {
-
-    private void deleteDatabase() {
-        // Context of the app under test.
-        Context appContext = InstrumentationRegistry.getTargetContext();
-        appContext.deleteDatabase(DbHelper.DATABASE_NAME);
-    }
-
     /*
         This function gets called before each test is executed to delete the database.  This makes
         sure that we always have a clean test.
      */
     @Test
     public void setUp() {
-        deleteDatabase();
+        TestUtils.deleteDatabase();
     }
 
     @Test
@@ -101,29 +93,6 @@ public class TestDb {
         db.close();
     }
 
-    private ContentValues createPatientValues() {
-        // Create a new map of values, where column names are the keys
-        ContentValues testValues = new ContentValues();
-        testValues.put(DbContract.PatientEntry.COLUMN_NAME, "NameTest");
-        testValues.put(DbContract.PatientEntry.COLUMN_ENTRY_NUMBER, 1971);
-        testValues.put(DbContract.PatientEntry.COLUMN_NOTES, "Notes Test");
-
-        return testValues;
-    }
-
-    private void validateCurrentRecord(String error, Cursor valueCursor, ContentValues expectedValues) {
-        Set<Map.Entry<String, Object>> valueSet = expectedValues.valueSet();
-        for (Map.Entry<String, Object> entry : valueSet) {
-            String columnName = entry.getKey();
-            int idx = valueCursor.getColumnIndex(columnName);
-            assertFalse("Column '" + columnName + "' not found. " + error, idx == -1);
-            String expectedValue = entry.getValue().toString();
-            assertEquals("Value '" + entry.getValue().toString() +
-                    "' did not match the expected value '" +
-                    expectedValue + "'. " + error, expectedValue, valueCursor.getString(idx));
-        }
-    }
-
     @Test
     public void insertPatientValues() {
         // Context of the app under test.
@@ -132,7 +101,7 @@ public class TestDb {
         // insert our test records into the database
         DbHelper dbHelper = DbHelper.getInstance(appContext);
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        ContentValues testValues = createPatientValues();
+        ContentValues testValues = TestUtils.createPatientValues("Daniel", 1971, "Some notes");
 
         long locationRowId;
         locationRowId = db.insert(DbContract.PatientEntry.TABLE_NAME, null, testValues);
