@@ -42,14 +42,16 @@ public class TestUtils {
         return values;
     }
 
-    static ContentValues createTestValues(long patient_id, int date, String type, String content, int status) {
+    static ContentValues createTestValues(long patient_id, int date, String code, String content,
+                                          int status, int inorout) {
         // Create a new map of values, where column names are the keys
         ContentValues values = new ContentValues();
         values.put(TestEntry.COLUMN_PATIENT_ID_FK, patient_id);
         values.put(TestEntry.COLUMN_DATE, date);
-        values.put(TestEntry.COLUMN_TYPE, type);
+        values.put(TestEntry.COLUMN_CODE, code);
         values.put(TestEntry.COLUMN_CONTENT, content);
         values.put(TestEntry.COLUMN_STATUS, status);
+        values.put(TestEntry.COLUMN_INOUT, inorout);
 
         return values;
     }
@@ -62,11 +64,11 @@ public class TestUtils {
         return appContext.getContentResolver().insert(PatientEntry.CONTENT_URI, values);
     }
 
-    static Uri insertTest(long patient_id, int date, String type, String notes, int status) {
+    static Uri insertTest(long patient_id, int date, String code, String notes, int status, int inorout) {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        ContentValues values = TestUtils.createTestValues(patient_id, date, type, notes, status);
+        ContentValues values = TestUtils.createTestValues(patient_id, date, code, notes, status, inorout);
         return appContext.getContentResolver().insert(TestEntry.CONTENT_URI, values);
     }
 

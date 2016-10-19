@@ -50,18 +50,20 @@ public class DbHelper extends SQLiteOpenHelper {
                 TestEntry.COLUMN_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 TestEntry.COLUMN_PATIENT_ID_FK + " INTEGER NOT NULL, " +
                 TestEntry.COLUMN_DATE + " INTEGER, " +
-                TestEntry.COLUMN_TYPE + " TEXT NOT NULL, " +
+                TestEntry.COLUMN_CODE + " TEXT NOT NULL, " +
                 TestEntry.COLUMN_CONTENT + " TEXT, " +
                 TestEntry.COLUMN_STATUS + " INTEGER NOT NULL, " +
+                TestEntry.COLUMN_INOUT + " INTEGER NOT NULL, " +
 
                 // Set up the patient_id_fk as a foreign key to patient table
                 "FOREIGN KEY (" + TestEntry.COLUMN_PATIENT_ID_FK + ") REFERENCES " +
-                PatientEntry.TABLE_NAME + " (" + PatientEntry.COLUMN_ID + "), " +
+                PatientEntry.TABLE_NAME + " (" + PatientEntry.COLUMN_ID + "));";
 
-                // To assure the application have just one test per type per patient,
-                // it's created a UNIQUE constraint with REPLACE strategy
-                "UNIQUE (" + TestEntry.COLUMN_TYPE + ", " +
-                TestEntry.COLUMN_PATIENT_ID_FK + ") ON CONFLICT REPLACE);";
+//                // To assure the application have just one test type(code) per patient,
+//                // it's created a UNIQUE constraint with REPLACE strategy
+//                +
+//                "UNIQUE (" + TestEntry.COLUMN_CODE + ", " +
+//                TestEntry.COLUMN_PATIENT_ID_FK + ") ON CONFLICT REPLACE);";
 
         db.execSQL(SQL_CREATE_PATIENT_TABLE);
         db.execSQL(SQL_CREATE_TEST_TABLE);

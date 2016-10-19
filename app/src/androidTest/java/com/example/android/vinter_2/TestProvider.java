@@ -134,7 +134,7 @@ public class TestProvider {
                 newPatientUri);
 
         // Insert test
-        Uri newTestUri = insertTest(ContentUris.parseId(newPatientUri), 1971, "IMF", "daniel's content", 1);
+        Uri newTestUri = insertTest(ContentUris.parseId(newPatientUri), 1971, "IMF", "daniel's content", 1, 0);
         id = ContentUris.parseId(newTestUri);
 
         assertEquals("Error: inserting test at testInsert",
@@ -158,7 +158,7 @@ public class TestProvider {
         assertEquals("Error: insert patient failed at testDelete", expectedPatientUri, newPatientUri);
 
         // Insert test
-        Uri newTestUri = TestUtils.insertTest(ContentUris.parseId(newPatientUri), 1971, "IMF", "daniel's content", 1);
+        Uri newTestUri = TestUtils.insertTest(ContentUris.parseId(newPatientUri), 1971, "IMF", "daniel's content", 1, 0);
         Uri expectedTestUri = ContentUris.withAppendedId(TestEntry.CONTENT_URI, ContentUris.parseId(newTestUri));
 
         assertEquals("Error: insert test failed at testDelete", newTestUri, expectedTestUri);

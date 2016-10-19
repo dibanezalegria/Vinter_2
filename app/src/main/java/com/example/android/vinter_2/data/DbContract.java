@@ -47,7 +47,8 @@ public class DbContract {
 
         public static final String COLUMN_ID = BaseColumns._ID;
         public static final String COLUMN_PATIENT_ID_FK = "patient_id";
-        public static final String COLUMN_TYPE = "type";
+        public static final String COLUMN_CODE = "code";
+        public static final String COLUMN_INOUT = "inout";
         public static final String COLUMN_CONTENT = "content";
         public static final String COLUMN_STATUS = "status";
         public static final String COLUMN_DATE = "date";
