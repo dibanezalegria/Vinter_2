@@ -5,6 +5,7 @@ import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.util.Log;
@@ -117,13 +118,24 @@ public class DbProvider extends ContentProvider {
         // TODO: validate values (patient_id, type, content, status, date)
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
-        long id = db.insert(TestEntry.TABLE_NAME, null, values);
-        if (id == -1) {
+        // Foreign key constraint throws exception if a patient with id = patient_id
+        // is not found in table 'patient'
+        long id = -1;
+        try {
+            id = db.insertOrThrow(TestEntry.TABLE_NAME, null, values);
+        } catch (SQLiteConstraintException ex) {
+            Log.d(LOG_TAG, "DbProvider.insertTest() throws SQLiteConstraintException");
+            return null;
+        } finally {
+            db.close();
+        }
+
+        if (id != -1) {
+            return ContentUris.withAppendedId(uri, id);
+        } else {
             Log.d(LOG_TAG, "Failed to insert row for " + uri);
             return null;
         }
-
-        return ContentUris.withAppendedId(uri, id);
     }
 
     @Override
