@@ -105,10 +105,10 @@ public class DbProvider extends ContentProvider {
      * Helper method that inserts row in patient table
      */
     private Uri insertPatient(Uri uri, ContentValues values) {
-        // TODO: catch exception in MainActivity
         // Data validation
         String name = values.getAsString(PatientEntry.COLUMN_NAME);
         if (name == null || name.isEmpty()) {
+            // TODO: catch exception in MainActivity or simpler: do not throw, only Log.d
             throw new IllegalArgumentException("Exception in insertPatient (DbProvider): " +
                     "Patient requires a name");
         }

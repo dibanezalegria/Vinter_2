@@ -20,7 +20,9 @@ import android.widget.Toast;
 import com.example.android.vinter_2.data.DbContract.PatientEntry;
 import com.example.android.vinter_2.data.DbContract.TestEntry;
 
-public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>{
+import java.util.ArrayList;
+
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor> {
 
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
 
@@ -44,6 +46,11 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Button btnUpdateTest = (Button) findViewById(R.id.btn_update_test);
         Button btnDeletePatient = (Button) findViewById(R.id.btn_delete_patient);
         Button btnDeleteTest = (Button) findViewById(R.id.btn_delete_test);
+        Button btnQuery = (Button) findViewById(R.id.btn_query);
+        final EditText etQueryPatientID = (EditText) findViewById(R.id.et_query_patient_id);
+        final EditText etQueryCode = (EditText) findViewById(R.id.et_query_test_code);
+        final EditText etQueryInOut = (EditText) findViewById(R.id.et_query_test_inout);
+
         final EditText etPatientID = (EditText) findViewById(R.id.et_patient_id);
         final EditText etTestID = (EditText) findViewById(R.id.et_test_id);
         final TextView tvName = (TextView) findViewById(R.id.list_item_patient_name);
@@ -116,6 +123,36 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             }
         });
 
+        btnQuery.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int patientID = 0;
+                if (etQueryPatientID.getText().length() != 0) {
+                    patientID = Integer.parseInt(etQueryPatientID.getText().toString());
+                }
+
+                String code = null;
+                if (etQueryCode.getText().length() != 0) {
+                    code = etQueryCode.getText().toString();
+                }
+
+                int inout = -1;
+                if (etQueryInOut.getText().length() != 0) {
+                    inout = Integer.parseInt(etQueryInOut.getText().toString());
+                }
+
+                Cursor cursor = query(patientID, code, inout);
+                Log.d(LOG_TAG, "cursor: " + cursor.getCount());
+
+                while(cursor.moveToNext()) {
+                    int testID = cursor.getInt(cursor.getColumnIndex(TestEntry.COLUMN_ID));
+                    Log.d(LOG_TAG, "TestID: " + testID);
+                }
+
+                cursor.close();
+            }
+        });
+
         // List views
         mListViewPatients = (ListView) findViewById(R.id.list_view_patients);
         mListViewTests = (ListView) findViewById(R.id.list_view_tests);
@@ -135,7 +172,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     /**
-     *  Add patient to database and return uri
+     * Add patient to database and return uri
      */
     private Uri addDummyPatient(String name, int entryNum, String notes) {
         // Insert a new patient in patient table
@@ -233,6 +270,45 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         }
         Toast.makeText(this, "Tests deleted: " + rowsDeleted, Toast.LENGTH_SHORT).show();
         return rowsDeleted;
+    }
+
+    private Cursor query(int patientID, String code, int inout) {
+        ArrayList<String> listSelectionArgs = new ArrayList<>();
+        StringBuilder builderSelection = new StringBuilder();
+        if (inout != -1) {
+            builderSelection.append(TestEntry.COLUMN_INOUT + "=?");
+            listSelectionArgs.add(String.valueOf(inout));
+        }
+
+        if (code != null) {
+            if (builderSelection.length() != 0) {
+                builderSelection.append(" AND ");
+            }
+            builderSelection.append(TestEntry.COLUMN_CODE + "=?");
+            listSelectionArgs.add(code);
+        }
+
+        if (patientID != 0) {
+            if (builderSelection.length() != 0) {
+                builderSelection.append(" AND ");
+            }
+            builderSelection.append(TestEntry.COLUMN_PATIENT_ID_FK + "=?");
+            listSelectionArgs.add(String.valueOf(patientID));
+        }
+
+        String selection = builderSelection.toString();
+        String[] selectionArgs = listSelectionArgs.toArray(new String[listSelectionArgs.size()]);
+
+        Log.d(LOG_TAG, "selection: " + selection + " args: " + selectionArgs.toString());
+
+
+        // All rows from table 'test' where patientID and code and status
+//        String selection = TestEntry.COLUMN_ID + "=? AND " + TestEntry.COLUMN_CODE + "=? AND " +
+//                TestEntry.COLUMN_STATUS + "=?";
+//        String[] selectionArgs = new String[]{String.valueOf(patientID),
+//                code, String.valueOf(status)};
+        return getContentResolver().query(TestEntry.CONTENT_URI, null, selection,
+                selectionArgs, null);
     }
 
     /**
