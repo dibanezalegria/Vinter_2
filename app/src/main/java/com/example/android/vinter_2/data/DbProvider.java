@@ -79,6 +79,12 @@ public class DbProvider extends ContentProvider {
             default:
                 throw new IllegalArgumentException("Unknown uri: " + uri);
         }
+
+        // Set notification URI on the Cursor,
+        // so we know what content URI the cursor was created for.
+        // If the data at this URI changes, then we know we need to update the Cursor.
+        cursor.setNotificationUri(getContext().getContentResolver(), uri);
+
         return cursor;
     }
 
@@ -99,7 +105,14 @@ public class DbProvider extends ContentProvider {
      * Helper method that inserts row in patient table
      */
     private Uri insertPatient(Uri uri, ContentValues values) {
-        // TODO: validate values (name, entryNumber, notes)
+        // TODO: catch exception in MainActivity
+        // Data validation
+        String name = values.getAsString(PatientEntry.COLUMN_NAME);
+        if (name == null || name.isEmpty()) {
+            throw new IllegalArgumentException("Exception in insertPatient (DbProvider): " +
+                    "Patient requires a name");
+        }
+
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         long id = db.insert(PatientEntry.TABLE_NAME, null, values);
@@ -108,6 +121,10 @@ public class DbProvider extends ContentProvider {
             return null;
         }
 
+        // Notify all listeners that the data has changed for the patient URI
+        // uri: content://com.example.android.vinter_2/patient
+        getContext().getContentResolver().notifyChange(uri, null);
+
         return ContentUris.withAppendedId(uri, id);
     }
 
@@ -115,27 +132,30 @@ public class DbProvider extends ContentProvider {
      * Helper method that inserts row in test table
      */
     private Uri insertTest(Uri uri, ContentValues values) {
-        // TODO: validate values (patient_id, type, content, status, date)
+        // Data validation
+        // TODO: validate values (patient_id, code, status, inout)
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
         // Foreign key constraint throws exception if a patient with id = patient_id
         // is not found in table 'patient'
-        long id = -1;
+        long id;
         try {
             id = db.insertOrThrow(TestEntry.TABLE_NAME, null, values);
         } catch (SQLiteConstraintException ex) {
             Log.d(LOG_TAG, "DbProvider.insertTest() throws SQLiteConstraintException");
             return null;
-        } finally {
-            db.close();
         }
 
-        if (id != -1) {
-            return ContentUris.withAppendedId(uri, id);
-        } else {
+        if (id == -1) {
             Log.d(LOG_TAG, "Failed to insert row for " + uri);
             return null;
         }
+
+        // Notify all listeners that the data has changed for the patient URI
+        // uri: content://com.example.android.vinter_2/test
+        getContext().getContentResolver().notifyChange(uri, null);
+
+        return ContentUris.withAppendedId(uri, id);
     }
 
     @Override
@@ -143,32 +163,42 @@ public class DbProvider extends ContentProvider {
         // Get writable database
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
-        int rowsDeleted;
+        int rowsDeleted = 0;
         final int match = sUriMatcher.match(uri);
-        switch (match) {
-            case PATIENTS:
-                // Delete all rows that match the selection and selection args
-                rowsDeleted = db.delete(PatientEntry.TABLE_NAME, selection, selectionArgs);
-                break;
-            case PATIENT_ID:
-                // Delete a single row given by the ID in the URI
-                selection = PatientEntry.COLUMN_ID + "=?";
-                selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
-                rowsDeleted = db.delete(PatientEntry.TABLE_NAME, selection, selectionArgs);
-                break;
-            case TESTS:
-                // Delete all rows that match the selection and selection args
-                rowsDeleted = db.delete(TestEntry.TABLE_NAME, selection, selectionArgs);
-                break;
-            case TEST_ID:
-                // Delete a single row given by the ID in the URI
-                selection = TestEntry.COLUMN_ID + "=?";
-                selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
-                rowsDeleted = db.delete(TestEntry.TABLE_NAME, selection, selectionArgs);
-                break;
-            default:
-                throw new IllegalArgumentException("Deletion is not supported for " + uri);
+        try {
+            switch (match) {
+                case PATIENTS:
+                    // Delete all rows that match the selection and selection args
+                    rowsDeleted = db.delete(PatientEntry.TABLE_NAME, selection, selectionArgs);
+                    break;
+                case PATIENT_ID:
+                    // Delete a single row given by the ID in the URI
+                    selection = PatientEntry.COLUMN_ID + "=?";
+                    selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
+                    rowsDeleted = db.delete(PatientEntry.TABLE_NAME, selection, selectionArgs);
+                    break;
+                case TESTS:
+                    // Delete all rows that match the selection and selection args
+                    rowsDeleted = db.delete(TestEntry.TABLE_NAME, selection, selectionArgs);
+                    break;
+                case TEST_ID:
+                    // Delete a single row given by the ID in the URI
+                    selection = TestEntry.COLUMN_ID + "=?";
+                    selectionArgs = new String[]{String.valueOf(ContentUris.parseId(uri))};
+                    rowsDeleted = db.delete(TestEntry.TABLE_NAME, selection, selectionArgs);
+                    break;
+                default:
+                    throw new IllegalArgumentException("Deletion is not supported for " + uri);
+            }
+        } catch (SQLiteConstraintException ex) {
+            Log.d(LOG_TAG, "DbProvider.delete() throws SQLiteConstraintException");
         }
+
+        // Notify listeners
+        if (rowsDeleted != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+
         return rowsDeleted;
     }
 
@@ -206,6 +236,11 @@ public class DbProvider extends ContentProvider {
 
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         int rowsUpdated = db.update(PatientEntry.TABLE_NAME, values, selection, selectionArgs);
+        // Notify listeners
+        if (rowsUpdated != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+
         return rowsUpdated;
     }
 
@@ -222,6 +257,11 @@ public class DbProvider extends ContentProvider {
 
         SQLiteDatabase db = mDbHelper.getWritableDatabase();
         int rowsUpdated = db.update(TestEntry.TABLE_NAME, values, selection, selectionArgs);
+        // Notify listeners
+        if (rowsUpdated != 0) {
+            getContext().getContentResolver().notifyChange(uri, null);
+        }
+
         return rowsUpdated;
     }
 

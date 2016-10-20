@@ -1,24 +1,36 @@
 package com.example.android.vinter_2;
 
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.app.LoaderManager;
+import android.support.v4.content.CursorLoader;
+import android.support.v4.content.Loader;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.android.vinter_2.data.DbContract.PatientEntry;
 import com.example.android.vinter_2.data.DbContract.TestEntry;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>{
 
     private static final String LOG_TAG = MainActivity.class.getSimpleName();
 
+    // Loader constants
+    private static final int PATIENT_LOADER = 0;
+    private static final int TEST_LOADER = 1;
+
     private ListView mListViewPatients, mListViewTests;
+    private PatientCursorAdapter mPatientCursorAdapter;
+    private TestCursorAdapter mTestCursorAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +40,12 @@ public class MainActivity extends AppCompatActivity {
         // Find fields to populate in inflated template
         Button btnAddPatient = (Button) findViewById(R.id.btn_add_dummy_patient);
         Button btnAddTest = (Button) findViewById(R.id.btn_add_dummy_test);
+        Button btnUpdatePatient = (Button) findViewById(R.id.btn_update_patient);
+        Button btnUpdateTest = (Button) findViewById(R.id.btn_update_test);
+        Button btnDeletePatient = (Button) findViewById(R.id.btn_delete_patient);
+        Button btnDeleteTest = (Button) findViewById(R.id.btn_delete_test);
+        final EditText etPatientID = (EditText) findViewById(R.id.et_patient_id);
+        final EditText etTestID = (EditText) findViewById(R.id.et_test_id);
         final TextView tvName = (TextView) findViewById(R.id.list_item_patient_name);
         final TextView tvEntry = (TextView) findViewById(R.id.list_item_patient_entry);
         final TextView tvNotes = (TextView) findViewById(R.id.list_item_patient_notes);
@@ -42,11 +60,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 addDummyPatient(tvName.getText().toString(),
+                        // TODO: cath parseInt exception
                         Integer.parseInt(tvEntry.getText().toString()),
                         tvNotes.getText().toString());
-
-                // TODO: this update will be automatic after implementing cursor loaders
-                updateListViewPatients();
             }
         });
 
@@ -56,11 +72,47 @@ public class MainActivity extends AppCompatActivity {
                 addDummyTestForPatient(Integer.parseInt(tvID.getText().toString()),
                         tvCode.getText().toString(),
                         tvContent.getText().toString(),
+                        // TODO: catch parseInt exception
                         Integer.parseInt(tvStatus.getText().toString()),
                         Integer.parseInt(tvInOut.getText().toString()));
+            }
+        });
 
-                // TODO: this update will be automatic after implementing cursor loaders
-                updateListViewTests();
+        btnUpdatePatient.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                updatePatient(Integer.parseInt(etPatientID.getText().toString()),
+                        tvName.getText().toString(),
+                        // TODO: cath parseInt exception
+                        Integer.parseInt(tvEntry.getText().toString()),
+                        tvNotes.getText().toString());
+            }
+        });
+
+        btnUpdateTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                updateTest(Integer.parseInt(etTestID.getText().toString()),
+                        Integer.parseInt(tvID.getText().toString()),
+                        tvCode.getText().toString(),
+                        tvContent.getText().toString(),
+                        // TODO: catch parseInt exception
+                        Integer.parseInt(tvStatus.getText().toString()),
+                        Integer.parseInt(tvInOut.getText().toString()));
+            }
+        });
+
+        btnDeletePatient.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                deletePatient(Integer.parseInt(etPatientID.getText().toString()));
+            }
+        });
+
+        btnDeleteTest.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                deleteTest(Integer.parseInt(etTestID.getText().toString()));
             }
         });
 
@@ -68,10 +120,18 @@ public class MainActivity extends AppCompatActivity {
         mListViewPatients = (ListView) findViewById(R.id.list_view_patients);
         mListViewTests = (ListView) findViewById(R.id.list_view_tests);
 
-        // Show list contents
-        // TODO: these updates will be automatic after implementing cursor loaders
-        updateListViewPatients();
-        updateListViewTests();
+        // Custom cursor adapters
+        // There is no patient/test data yet (until the loader finishes) so pass in null as cursors
+        mPatientCursorAdapter = new PatientCursorAdapter(this, null);
+        mTestCursorAdapter = new TestCursorAdapter(this, null);
+
+        // Setup adapters
+        mListViewPatients.setAdapter(mPatientCursorAdapter);
+        mListViewTests.setAdapter(mTestCursorAdapter);
+
+        // Kick off the loader
+        getSupportLoaderManager().initLoader(PATIENT_LOADER, null, this);
+        getSupportLoaderManager().initLoader(TEST_LOADER, null, this);
     }
 
     /**
@@ -84,8 +144,13 @@ public class MainActivity extends AppCompatActivity {
         values.put(PatientEntry.COLUMN_ENTRY_NUMBER, entryNum);
         values.put(PatientEntry.COLUMN_NOTES, notes);
 
-        Uri uri = getContentResolver().insert(PatientEntry.CONTENT_URI, values);
-        Log.d(LOG_TAG, "Insert patient returned uri: " + uri.toString());
+        Uri uri = null;
+        try {
+            uri = getContentResolver().insert(PatientEntry.CONTENT_URI, values);
+            Log.d(LOG_TAG, "Insert patient returned uri: " + uri.toString());
+        } catch (IllegalArgumentException e) {
+            Log.d(LOG_TAG, e.getMessage());
+        }
 
         return uri;
     }
@@ -108,27 +173,107 @@ public class MainActivity extends AppCompatActivity {
         return uri;
     }
 
-    /**
-     * Update patient list view
-     */
-    public void updateListViewPatients() {
-        // Query for all rows in patient table
-        Cursor cursor = getContentResolver().query(PatientEntry.CONTENT_URI, null, null, null, null);
-        // Setup custom adapter using returned cursor from query
-        PatientCursorAdapter adapter = new PatientCursorAdapter(this, cursor);
-        // Attach cursor adapter to list view
-        mListViewPatients.setAdapter(adapter);
+    private int updatePatient(int patientID, String name, int entryNum, String notes) {
+        // Uri to update
+        Uri uri = ContentUris.withAppendedId(PatientEntry.CONTENT_URI, patientID);
+
+        // Values to update
+        ContentValues values = new ContentValues();
+        values.put(PatientEntry.COLUMN_NAME, name);
+        values.put(PatientEntry.COLUMN_ENTRY_NUMBER, entryNum);
+        values.put(PatientEntry.COLUMN_NOTES, notes);
+
+        // Update patient
+        int rowsUpdated = getContentResolver().update(uri, values, null, null);
+        Toast.makeText(this, "Rows updated: " + rowsUpdated, Toast.LENGTH_SHORT).show();
+        return rowsUpdated;
+    }
+
+    private int updateTest(int testID, int patientId, String code, String content, int status, int inout) {
+        // Uri to update
+        Uri uri = ContentUris.withAppendedId(TestEntry.CONTENT_URI, testID);
+
+        // Values to update
+        ContentValues values = new ContentValues();
+        values.put(TestEntry.COLUMN_CONTENT, content);
+        values.put(TestEntry.COLUMN_STATUS, status);
+        values.put(TestEntry.COLUMN_INOUT, inout);
+
+        // Update patient
+        int rowsUpdated = getContentResolver().update(uri, values, null, null);
+        Toast.makeText(this, "Rows updated: " + rowsUpdated, Toast.LENGTH_SHORT).show();
+        return rowsUpdated;
+    }
+
+    private int deletePatient(int patientID) {
+        int rowsDeleted;
+        if (patientID == 0) {
+            // Delete all rows
+            rowsDeleted = getContentResolver().delete(PatientEntry.CONTENT_URI, null, null);
+        } else {
+            // Uri to delete
+            Uri uri = ContentUris.withAppendedId(PatientEntry.CONTENT_URI, patientID);
+            // Delete
+            rowsDeleted = getContentResolver().delete(uri, null, null);
+        }
+        Toast.makeText(this, "Patients deleted: " + rowsDeleted, Toast.LENGTH_SHORT).show();
+        return rowsDeleted;
+    }
+
+    private int deleteTest(int testID) {
+        int rowsDeleted;
+        if (testID == 0) {
+            // Delete all rows
+            rowsDeleted = getContentResolver().delete(TestEntry.CONTENT_URI, null, null);
+        } else {
+            // Uri to delete
+            Uri uri = ContentUris.withAppendedId(TestEntry.CONTENT_URI, testID);
+            // Delete
+            rowsDeleted = getContentResolver().delete(uri, null, null);
+        }
+        Toast.makeText(this, "Tests deleted: " + rowsDeleted, Toast.LENGTH_SHORT).show();
+        return rowsDeleted;
     }
 
     /**
-     * Update test list view
+     * LoaderManager callbacks interface methods
      */
-    public void updateListViewTests() {
-        // Query for all rows in test table
-        Cursor cursor = getContentResolver().query(TestEntry.CONTENT_URI, null, null, null, null);
-        // Setup custom adapter using returned cursor from query
-        TestCursorAdapter adapter = new TestCursorAdapter(this, cursor);
-        // Attach cursor adapter to list view
-        mListViewTests.setAdapter(adapter);
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        switch (id) {
+            case PATIENT_LOADER:
+                return new CursorLoader(this,
+                        PatientEntry.CONTENT_URI, null, null, null, null);
+            case TEST_LOADER:
+                return new CursorLoader(this,
+                        TestEntry.CONTENT_URI, null, null, null, null);
+            default:
+                return null;
+        }
     }
+
+    @Override
+    public void onLoadFinished(Loader<Cursor> loader, Cursor data) {
+        // Update adapters with new cursor containing updated data
+        switch (loader.getId()) {
+            case PATIENT_LOADER:
+                mPatientCursorAdapter.swapCursor(data);
+                break;
+            case TEST_LOADER:
+                mTestCursorAdapter.swapCursor(data);
+        }
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        // Callback called when the data needs to be deleted
+        switch (loader.getId()) {
+            case PATIENT_LOADER:
+                mPatientCursorAdapter.swapCursor(null);
+                break;
+            case TEST_LOADER:
+                mTestCursorAdapter.swapCursor(null);
+        }
+    }
+
 }
